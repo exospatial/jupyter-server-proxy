@@ -174,6 +174,7 @@ class ProxyHandler(WebSocketHandlerMixin, IPythonHandler):
             headers['X-ProxyContextPath'] = context_path
             # to be compatible with flask/werkzeug wsgi applications
             headers['X-Forwarded-Prefix'] = context_path
+            headers['X-Script-Name'] = context_path
 
         req = httpclient.HTTPRequest(
             client_uri, method=self.request.method, body=body,
@@ -225,9 +226,14 @@ class ProxyHandler(WebSocketHandlerMixin, IPythonHandler):
 
         try:
             response = await client.fetch(req, raise_error=False)
+            print(f'Server response: {response}')
+            print(f'Server headers: {response.headers}')
+            print(f'Request host: {host}')
+            print(f'Request port: {port}')
+            print(f'Request proxied_path: {proxied_path}')
         except httpclient.HTTPError as err:
             # We need to capture the timeout error even with raise_error=False,
-            # because it only affects the HTTPError raised when a non-200 response 
+            # because it only affects the HTTPError raised when a non-200 response
             # code is used, instead of suppressing all errors.
             # Ref: https://www.tornadoweb.org/en/stable/httpclient.html#tornado.httpclient.AsyncHTTPClient.fetch
             if err.code == 599:
@@ -255,9 +261,13 @@ class ProxyHandler(WebSocketHandlerMixin, IPythonHandler):
                 if header not in ('Content-Length', 'Transfer-Encoding',
                                   'Content-Encoding', 'Connection'):
                     # some header appear multiple times, eg 'Set-Cookie'
+                    print(f'Returned header: {header} {v}')
+                    # if header == 'Location':
+                    #     v = v.replace('http://localhost:8888', self._get_context_path(port))
                     self.add_header(header, v)
 
             if response.body:
+                # self.write(response.body.replace(b'/static/', b'/superset/static/'))
                 self.write(response.body)
 
     async def proxy_open(self, host, port, proxied_path=''):
